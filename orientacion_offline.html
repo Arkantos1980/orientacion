@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Juego de Orientación</title>
+<!--
+  ╔══════════════════════════════════════════════════════════╗
+  ║  VERSIÓN OFFLINE — Sin Tailwind, sin CDN externos        ║
+  ║  La única dependencia externa es html5-qrcode,           ║
+  ║  que se cachea automáticamente en la primera carga.      ║
+  ║                                                          ║
+  ║  INSTRUCCIONES DE USO:                                   ║
+  ║  1. Abre esta página UNA VEZ con internet.               ║
+  ║  2. Espera el mensaje "Modo offline listo ✅"            ║
+  ║  3. A partir de ese momento funciona sin red.            ║
+  ╚══════════════════════════════════════════════════════════╝
+-->
+<script>
+/* ── Service Worker inline via Blob ── */
+if ('serviceWorker' in navigator) {
+  const SW = `
+const CACHE = 'orientacion-v1';
+const PRE   = ['https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'];
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(PRE.map(u => c.add(u).catch(() => {})))));
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(res => {
+    if (res && res.ok) { const c = res.clone(); caches.open(CACHE).then(ca => ca.put(e.request, c)); }
+    return res;
+  })));
+});`;
+  const url = URL.createObjectURL(new Blob([SW], {type:'application/javascript'}));
+  navigator.serviceWorker.register(url).then(() => console.log('Modo offline listo ✅'));
+}
+</script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f9;color:#1e293b;padding:1rem}
+
+/* Pantallas */
+.screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;width:100%}
+.screen.active{display:flex}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.fade-in{animation:fi .28s ease-out both}
+
+/* Tarjeta */
+.card{background:#fff;border-radius:1.25rem;box-shadow:0 2px 20px rgba(0,0,0,.09);width:100%;max-width:440px}
+.p-lg{padding:2rem}
+.p-md{padding:1.5rem}
+
+/* Inicio */
+.hero{display:flex;justify-content:center;color:#2563eb;margin-bottom:1.25rem}
+.t1{font-size:1.75rem;font-weight:800;color:#14532d;text-align:center;margin-bottom:.2rem}
+.t2{font-size:1.3rem;font-weight:800;color:#8A2BE2;text-align:center;margin-bottom:1rem}
+.lead{font-size:.93rem;color:#64748b;text-align:center;margin-bottom:1.5rem}
+.lbl{display:block;font-size:.83rem;font-weight:600;color:#374151;margin-bottom:.45rem}
+select{display:block;width:100%;padding:.75rem 2.5rem .75rem 1rem;border:1.5px solid #cbd5e1;border-radius:.75rem;background:#f8fafc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 1rem center;appearance:none;font-size:1.02rem;color:#1e293b;outline:none;transition:border-color .15s;margin-bottom:1.5rem}
+select:focus{border-color:#3b82f6}
+
+/* Botones */
+.btn{display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.95rem 1.5rem;border:none;border-radius:.75rem;font-size:1.02rem;font-weight:700;cursor:pointer;transition:filter .15s,transform .1s;-webkit-tap-highlight-color:transparent}
+.btn:active{transform:scale(.97);filter:brightness(.92)}
+.btn-blue{background:#2563eb;color:#fff}
+.btn-green{background:#16a34a;color:#fff;margin-bottom:1rem}
+.btn-dark{background:#1e293b;color:#fff}
+.btn-gray{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+.btn-purple{background:#7c3aed;color:#fff;margin-top:.5rem;animation:ring 2s ease-in-out infinite}
+@keyframes ring{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,.4)}50%{box-shadow:0 0 0 10px rgba(124,58,237,0)}}
+
+/* Escáner */
+.sh{font-size:1.2rem;font-weight:700;color:#1e293b;border-bottom:1px solid #f1f5f9;padding-bottom:.75rem;margin-bottom:1rem;text-align:center}
+#reader{width:100%;border-radius:.75rem;overflow:hidden;background:#000;margin-bottom:1rem}
+.cbar{display:flex;justify-content:space-between;align-items:center;background:#eff6ff;border:1px solid #bfdbfe;border-radius:.75rem;padding:.8rem 1.1rem;margin-bottom:1.1rem}
+.cbar .cl{color:#1d4ed8;font-weight:600;font-size:.93rem}
+.cb{background:#2563eb;color:#fff;font-weight:700;font-size:.98rem;padding:.18rem .7rem;border-radius:9999px}
+
+/* Indicadores */
+.pw{border-top:1px solid #f1f5f9;padding-top:1rem}
+.pt{font-size:.78rem;font-weight:600;color:#94a3b8;text-align:center;margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.05em}
+.inds{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem;margin-bottom:1.1rem}
+.ind{background:#e2e8f0;color:#64748b;font-size:.76rem;font-weight:700;padding:.22rem .75rem;border-radius:9999px;transition:background .25s,color .25s}
+.ind.done{background:#16a34a;color:#fff}
+
+/* Resultados */
+.rh{font-size:1.6rem;font-weight:800;text-align:center;margin-bottom:1.25rem;color:#0f172a}
+.rb{border-radius:1rem;padding:1.4rem 1.25rem;text-align:center;margin-bottom:1.25rem}
+.rb svg{display:block;margin:0 auto .45rem}
+.rl{font-size:1.35rem;font-weight:800;letter-spacing:-.02em}
+.rs{font-size:.84rem;margin-top:.3rem}
+.rok{background:#f0fdf4;border:2px solid #22c55e}.rok .rl{color:#15803d}
+.rfail{background:#fef2f2;border:2px solid #ef4444}.rfail .rl{color:#b91c1c}.rfail .rs{color:#dc2626}
+.srow{display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;padding:.85rem 1.1rem;margin-bottom:.65rem}
+.sl{color:#64748b;font-size:.9rem;font-weight:500}.sv{color:#0f172a;font-weight:700}
+.rr{background:#f8fafc;border:1px solid #e2e8f0;border-radius:.75rem;padding:.85rem 1.1rem;margin-bottom:1.25rem}
+.rrl{display:block;color:#64748b;font-size:.9rem;font-weight:500;margin-bottom:.4rem}
+.rrt{font-family:monospace;font-size:.84rem;color:#334155;word-break:break-word;line-height:1.7}
+.rsep{color:#cbd5e1}
+
+/* Toast */
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.92);color:#fff;padding:.6rem 1.3rem;border-radius:9999px;font-size:.88rem;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:9999;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+
+/* Banner offline */
+#ob{position:fixed;top:0;left:0;right:0;background:#fef9c3;color:#92400e;font-size:.82rem;font-weight:600;text-align:center;padding:.4rem 1rem;z-index:9998;display:none}
+</style>
+</head>
+<body>
+
+<div id="ob">⚠️ Sin conexión — usando datos en caché</div>
+
+<!-- PANTALLA 1: INICIO -->
+<div id="pantalla-inicio" class="screen active fade-in">
+  <div class="card p-lg">
+    <div class="hero">
+      <svg width="52" height="52" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+    </div>
+    <h1 class="t1">Día del Scouter</h1>
+    <h2 class="t2">El cementerio encantado</h2>
+    <p class="lead">Selecciona tu equipo para cargar la ruta.</p>
+    <label class="lbl" for="selectorEquipo">Equipo / Ruta:</label>
+    <select id="selectorEquipo">
+      <option value="equipoRojo">🔴 Equipo Rojo</option>
+      <option value="equipoAzul">🔵 Equipo Azul</option>
+      <option value="equipoVerde">🟢 Equipo Verde</option>
+      <option value="equipoAmarillo">🟡 Equipo Amarillo</option>
+    </select>
+    <button class="btn btn-blue" onclick="empezarJuego()">Empezar Aventura</button>
+  </div>
+</div>
+
+<!-- PANTALLA 2: ESCÁNER -->
+<div id="pantalla-escaner" class="screen fade-in">
+  <div class="card p-md">
+    <h2 id="tituloEquipo" class="sh"></h2>
+    <div id="reader"></div>
+    <button class="btn btn-green" onclick="iniciarCamara()">
+      <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+      Escanear Baliza
+    </button>
+    <div class="cbar">
+      <span class="cl">Balizas registradas:</span>
+      <span id="contadorPuntos" class="cb">0</span>
+    </div>
+    <div class="pw">
+      <p class="pt">Progreso de la ruta</p>
+      <div id="contenedor-indicadores" class="inds"></div>
+      <button id="btn-verificar" class="btn btn-gray" onclick="verificarRuta()" disabled style="display:none">
+        🔒 Verificar Ruta
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- PANTALLA 3: RESULTADOS -->
+<div id="pantalla-resultados" class="screen fade-in">
+  <div class="card p-lg">
+    <h2 class="rh">¡Ruta Terminada!</h2>
+    <div id="mensaje-validacion"></div>
+    <div class="srow">
+      <span class="sl">Tiempo total:</span>
+      <span id="res-tiempo" class="sv"></span>
+    </div>
+    <div class="rr">
+      <span class="rrl">Tu recorrido:</span>
+      <div id="res-ruta" class="rrt"></div>
+    </div>
+    <button class="btn btn-dark" onclick="location.reload()">Volver al Inicio</button>
+  </div>
+</div>
+
+<script>
+/* ── Detección offline ── */
+const ob = document.getElementById('ob');
+function chkNet() { ob.style.display = navigator.onLine ? 'none' : 'block'; }
+window.addEventListener('online', chkNet);
+window.addEventListener('offline', chkNet);
+chkNet();
+
+/* ════════════════════════════════════════
+   CONFIGURACIÓN DE RUTAS
+   Edita el orden de las balizas por equipo.
+   ════════════════════════════════════════ */
+const todasLasRutas = {
+  "equipoRojo":     ["PUNTO_1", "PUNTO_2", "PUNTO_3", "META"],
+  "equipoAzul":     ["PUNTO_3", "PUNTO_1", "PUNTO_2", "META"],
+  "equipoVerde":    ["PUNTO_2", "PUNTO_3", "PUNTO_1", "META"],
+  "equipoAmarillo": ["PUNTO_1", "PUNTO_3", "PUNTO_2", "META"]
+};
+
+let rutaCorrecta  = [];
+let inicioTiempo  = 0;
+let rutaEscaneada = [];
+let escaner       = null;
+
+function cambiarPantalla(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function empezarJuego() {
+  const sel   = document.getElementById('selectorEquipo');
+  const idEq  = sel.value;
+  const nomEq = sel.options[sel.selectedIndex].text;
+
+  rutaCorrecta  = todasLasRutas[idEq];
+  inicioTiempo  = Date.now();
+  rutaEscaneada = [];
+  document.getElementById('contadorPuntos').textContent = '0';
+
+  const cont = document.getElementById('contenedor-indicadores');
+  cont.innerHTML = '';
+  rutaCorrecta.forEach((_, i) => {
+    const sp = document.createElement('span');
+    sp.id          = `ind-${i}`;
+    sp.className   = 'ind';
+    sp.textContent = (i === rutaCorrecta.length - 1) ? 'META' : String(i + 1);
+    cont.appendChild(sp);
+  });
+
+  const btn = document.getElementById('btn-verificar');
+  btn.style.display = 'none';
+  btn.disabled      = true;
+  btn.className     = 'btn btn-gray';
+  btn.textContent   = '🔒 Verificar Ruta';
+
+  if (escaner) {
+    (escaner.isScanning ? escaner.stop() : Promise.resolve())
+      .catch(() => {}).finally(() => { escaner = null; });
+  }
+
+  document.getElementById('tituloEquipo').textContent = nomEq;
+  cambiarPantalla('pantalla-escaner');
+}
+
+function procesarQR(texto) {
+  const qr = texto.trim();
+
+  if (qr === 'META' && rutaEscaneada.length < rutaCorrecta.length - 1) {
+    toast('❌ ¡Aún te faltan balizas para la META!'); return;
+  }
+  if (rutaEscaneada.includes(qr)) {
+    toast('Esta baliza ya está registrada.'); return;
+  }
+
+  rutaEscaneada.push(qr);
+  document.getElementById('contadorPuntos').textContent = rutaEscaneada.length;
+
+  const ind = document.getElementById(`ind-${rutaEscaneada.length - 1}`);
+  if (ind) ind.className = 'ind done';
+
+  if (rutaEscaneada.length === rutaCorrecta.length) {
+    toast('¡Ruta completada! 🎉 Busca al guardián.');
+    const btn = document.getElementById('btn-verificar');
+    btn.style.display = 'block';
+    btn.disabled      = false;
+    btn.className     = 'btn btn-purple';
+    btn.textContent   = '✅ Verificar Ruta (Guardián)';
+  } else {
+    toast('¡Baliza registrada! ✓');
+  }
+}
+
+function iniciarCamara() {
+  if (escaner && escaner.isScanning) return;
+  if (!escaner) escaner = new Html5Qrcode('reader');
+
+  escaner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+    texto => escaner.stop().then(() => procesarQR(texto)).catch(console.error),
+    ()    => {}
+  ).catch(() => alert('No se pudo acceder a la cámara. Acepta los permisos cuando el navegador lo solicite.'));
+}
+
+function verificarRuta() {
+  const segs = Math.floor((Date.now() - inicioTiempo) / 1000);
+  document.getElementById('res-tiempo').textContent =
+    `${Math.floor(segs / 60)}m ${segs % 60}s`;
+
+  const ok = rutaEscaneada.length === rutaCorrecta.length &&
+             rutaEscaneada.every((p, i) => p === rutaCorrecta[i]);
+
+  const box = document.getElementById('mensaje-validacion');
+  if (ok) {
+    box.className = 'rb rok';
+    box.innerHTML = `
+      <svg width="52" height="52" fill="none" stroke="#16a34a" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <div class="rl">¡RUTA PERFECTA!</div>`;
+  } else {
+    box.className = 'rb rfail';
+    box.innerHTML = `
+      <svg width="52" height="52" fill="none" stroke="#dc2626" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <div class="rl">RUTA INCORRECTA</div>
+      <div class="rs">Faltan puntos o el orden no coincide.</div>`;
+  }
+
+  document.getElementById('res-ruta').innerHTML =
+    rutaEscaneada.map(p => `<span>${p}</span>`)
+                 .join(' <span class="rsep">➔</span> ');
+
+  cambiarPantalla('pantalla-resultados');
+}
+
+function toast(msg) {
+  const t = document.createElement('div');
+  t.className   = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 320); }, 2300);
+}
+</script>
+</body>
+</html>
