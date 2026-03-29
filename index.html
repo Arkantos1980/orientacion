@@ -78,12 +78,12 @@ select:focus{border-color:#3b82f6}
     <h1 class="t1">Día del Scouter</h1>
     <h2 class="t2">El cementerio encantado</h2>
     <p class="lead">Selecciona tu equipo para cargar la ruta.</p>
-    <label class="lbl" for="selectorEquipo">Equipo / Ruta:</label>
+    <label class="lbl" for="selectorEquipo">Selecciona la ruta:</label>
     <select id="selectorEquipo">
-      <option value="equipoRojo">🔴 Equipo Rojo</option>
-      <option value="equipoAzul">🔵 Equipo Azul</option>
-      <option value="equipoVerde">🟢 Equipo Verde</option>
-      <option value="equipoAmarillo">🟡 Equipo Amarillo</option>
+      <option value="ruta1">🗺️ Ruta 1</option>
+      <option value="ruta2">🗺️ Ruta 2</option>
+      <option value="ruta3">🗺️ Ruta 3</option>
+      <option value="ruta4">🗺️ Ruta 4</option>
     </select>
     <button class="btn btn-blue" onclick="empezarJuego()">Empezar Aventura</button>
   </div>
@@ -128,7 +128,7 @@ select:focus{border-color:#3b82f6}
       <span class="rrl">Tu recorrido:</span>
       <div id="res-ruta" class="rrt"></div>
     </div>
-    <button class="btn btn-dark" onclick="location.reload()">Volver al Inicio</button>
+    <button class="btn btn-dark" onclick="resetJuego()">Siguiente turno</button>
   </div>
 </div>
 
@@ -149,10 +149,10 @@ var __Html5QrcodeLibrary__;(()=>{var t={449:function(t,e,r){!function(t){"use st
    Puedes añadir más equipos o más balizas.
    ════════════════════════════════════════ */
 const todasLasRutas = {
-  "equipoRojo":     ["PUNTO_1", "PUNTO_2", "PUNTO_3", "META"],
-  "equipoAzul":     ["PUNTO_3", "PUNTO_1", "PUNTO_2", "META"],
-  "equipoVerde":    ["PUNTO_2", "PUNTO_3", "PUNTO_1", "META"],
-  "equipoAmarillo": ["PUNTO_1", "PUNTO_3", "PUNTO_2", "META"]
+  "ruta1": ["PUNTO_1", "PUNTO_2", "PUNTO_3", "META"],
+  "ruta2": ["PUNTO_3", "PUNTO_1", "PUNTO_2", "META"],
+  "ruta3": ["PUNTO_2", "PUNTO_3", "PUNTO_1", "META"],
+  "ruta4": ["PUNTO_1", "PUNTO_3", "PUNTO_2", "META"]
 };
 
 let rutaCorrecta  = [];
@@ -273,6 +273,31 @@ function verificarRuta() {
                  .join(' <span class="rsep">➔</span> ');
 
   cambiarPantalla('pantalla-resultados');
+}
+
+function resetJuego() {
+  // Detener cámara si sigue activa
+  const pararYReset = escaner && escaner.isScanning
+    ? escaner.stop().catch(() => {})
+    : Promise.resolve();
+
+  pararYReset.finally(() => {
+    escaner = null;
+    rutaCorrecta  = [];
+    rutaEscaneada = [];
+    inicioTiempo  = 0;
+
+    // Limpiar el div del lector para que html5-qrcode no proteste en el siguiente turno
+    document.getElementById('reader').innerHTML = '';
+
+    // Limpiar pantalla de resultados para el próximo uso
+    document.getElementById('mensaje-validacion').innerHTML = '';
+    document.getElementById('res-tiempo').textContent = '';
+    document.getElementById('res-ruta').innerHTML = '';
+
+    // Volver a inicio sin recargar la página
+    cambiarPantalla('pantalla-inicio');
+  });
 }
 
 function toast(msg) {
